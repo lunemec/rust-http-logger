@@ -1,0 +1,14 @@
+[package]
+name = "rust-http-logger"
+version = "0.1.0"
+authors = ["Nemec Lukas <lukas.nemec2@firma.seznam.cz>"]
+
+[dependencies]
+chrono = "0.2"
+clap = "2.10"
+router = "0.2"
+params = "0.3"
+persistent = "0.2"
+
+[dependencies.iron]
+version="0.4"
