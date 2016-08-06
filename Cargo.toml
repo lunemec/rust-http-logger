@@ -1,7 +1,13 @@
 [package]
 name = "rust-http-logger"
+description = "Logs HTTP API calls to a file."
+homepage = "https://github.com/lunemec/rust-http-logger"
+repository = "https://github.com/lunemec/rust-http-logger"
+keywords = ["log", "http", "logging", "json"]
+license = "WTFPL"
+readme = "README.md"
 version = "0.1.0"
-authors = ["Nemec Lukas <lukas.nemec2@firma.seznam.cz>"]
+authors = ["Nemec Lukas <lu.nemec@gmail.com>"]
 
 [dependencies]
 chrono = "0.2"
