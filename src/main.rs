@@ -43,6 +43,7 @@ const HELP_MSG: &'static str = "
         </p>
     </body>
 </html>";
+const LOG_LEVELS: &'static [&'static str] = &["debug", "info", "warning", "error"];
 
 #[derive(Copy, Clone)]
 pub struct Log;
@@ -103,10 +104,8 @@ fn help(_: &mut Request) -> IronResult<Response> {
 }
 
 fn log_data(req: &mut Request) -> IronResult<Response> {
-    let log_levels = &["debug", "info", "warning", "error"];
     // This capacity is used to create HashMaps without the need to re-allocate.
-    let capacity = log_levels.iter().count();
-
+    let capacity = LOG_LEVELS.iter().count();
     // A HashMap containing Log_level -> bytes written for HTTP response.
     let mut success = HashMap::with_capacity(capacity);
     // A HashMap containing Log_level -> error reasons for HTTP response.
@@ -125,7 +124,7 @@ fn log_data(req: &mut Request) -> IronResult<Response> {
     };
 
     // Iterate over accepted log levels and log them.
-    for log_level in log_levels {
+    for log_level in LOG_LEVELS {
         match params_map.get(*log_level) {
             Some(&Value::String(ref value)) => {
                 let log_level = log_level.to_string();
@@ -143,6 +142,10 @@ fn log_data(req: &mut Request) -> IronResult<Response> {
         }
     }
 
+    create_response(success, errors)
+}
+
+fn create_response(success: HashMap<String, String>, errors: HashMap<String, String>) -> IronResult<Response> {
     if success.is_empty() && errors.is_empty() {
         return Ok(Response::with((status::BadRequest, "Missing one of ['debug', 'info', 'warning', 'error'] in POST data.")));
     }
