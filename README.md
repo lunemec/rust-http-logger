@@ -10,10 +10,10 @@ The server accepts JSON or HTML Form POST data:
 **JSON**:
 
     {
-      "error":"Tak uvidime jak to zvladne zatez.", 
-      "info":"Tak uvidime no dalsi zaznam", 
-      "warning":"DATA", 
-      "debug":"WAAAT"
+      "error":"Some error happened: TRACEBACK ... ", 
+      "info":"This user is suspicious", 
+      "warning":"Oh, this happened, beware!", 
+      "debug":"NOOO BUGs, BUGs everywhere!"
     }
 
 ## Usage
