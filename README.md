@@ -21,7 +21,7 @@ The server accepts JSON or HTML Form POST data:
 
 ## Usage
 
-    rust-http-logger localhost:3000 api.log --api_help
+    rust-http-logger localhost:3000 api.log
 
 Now the server accepts incomming connections on port 3000 on your machine and logs the data onto `api.log`. To test this
 you can use `curl`.

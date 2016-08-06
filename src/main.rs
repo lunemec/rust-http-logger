@@ -39,8 +39,7 @@ const HELP_MSG: &'static str = "
     <body>
         <h1>JS error logger server.</h1>
         <p>
-            GET *
-            POST /log/<DATA> -> Logs error information into the log_file.
+            For details, please visit <a href=\"https://github.com/lunemec/rust-http-logger\">https://github.com/lunemec/rust-http-logger</a>.
         </p>
     </body>
 </html>";
