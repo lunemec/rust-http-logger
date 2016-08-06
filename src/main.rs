@@ -72,7 +72,7 @@ impl Error for StringError {
 
 impl AfterMiddleware for ErrorRecover {
     fn catch(&self, _: &mut Request, err: IronError) -> IronResult<Response> {
-        println!("{} caught in ErrorRecover AfterMiddleware.", err.error);
+        println!("{} caught in ErrorRecover AfterMiddleware. {:?}", err.error, err);
         match err.response.status {
             Some(status::BadRequest) => Ok(err.response.set(status::Ok)),
             _ => Err(err)
@@ -131,7 +131,7 @@ fn log_data(req: &mut Request) -> IronResult<Response> {
             Some(&Value::String(ref value)) => {
                 let log_level = log_level.to_string();
                 let log_level_upper = log_level.to_uppercase();
-                let log_line = format!("[{datetime}][{level}] {record}\n", datetime=Local::now().to_string(), level=log_level_upper, record=value);
+                let log_line = format!("[{datetime}] [{level}] {record}\n", datetime=Local::now().to_string(), level=log_level_upper, record=value);
                 // Try to write into the LOG_FILE. When successful, return HTTP 200 Ok with the number
                 // of bytes writtern. Otherwise, we return HTTP 500 Internal Server Error with the
                 // reason.
