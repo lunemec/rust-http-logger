@@ -1,11 +1,15 @@
 extern crate chrono;
 extern crate clap;
+extern crate hyper;
 extern crate iron;
-extern crate router;
 extern crate params;
 extern crate persistent;
+extern crate router;
+extern crate rustc_serialize;
 
+use std::collections::HashMap;
 use std::error::Error;
+use std::fmt::{self, Debug};
 use std::fs::{File, OpenOptions};
 use std::io::{BufWriter, Write};
 use std::path::Path;
@@ -13,18 +17,68 @@ use std::path::Path;
 use chrono::Local;
 use clap::{Arg, App};
 
+use hyper::header::ContentType;
+use hyper::mime::{Mime, TopLevel, SubLevel};
+
+use iron::AfterMiddleware;
+use iron::modifiers::Header;
 use iron::typemap::Key;
 use iron::prelude::*;
 use iron::status;
 
-use router::Router;
 use params::{Params, Value};
 use persistent::Read;
+use router::Router;
+use rustc_serialize::json::{self, ToJson, Json};
+
+const HELP_MSG: &'static str = "
+<html>
+    <head>
+        <title>JS error logger server</title>
+    </head>
+    <body>
+        <h1>JS error logger server.</h1>
+        <p>
+            GET *
+            POST /log/<DATA> -> Logs error information into the log_file.
+        </p>
+    </body>
+</html>";
 
 #[derive(Copy, Clone)]
 pub struct Log;
-
 impl Key for Log { type Value = String; }
+
+struct ErrorRecover;
+
+#[derive(Debug)]
+struct StringError(String);
+
+#[derive(RustcEncodable)]
+struct JsonResponse {
+    success: Json,
+    errors: Json
+}
+
+impl fmt::Display for StringError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        Debug::fmt(self, f)
+    }
+}
+
+impl Error for StringError {
+    fn description(&self) -> &str { &*self.0 }
+}
+
+impl AfterMiddleware for ErrorRecover {
+    fn catch(&self, _: &mut Request, err: IronError) -> IronResult<Response> {
+        println!("{} caught in ErrorRecover AfterMiddleware.", err.error);
+        match err.response.status {
+            Some(status::BadRequest) => Ok(err.response.set(status::Ok)),
+            _ => Err(err)
+        }
+    }
+}
 
 fn open_log(log_path: &String) -> File {
     let path = Path::new(log_path);
@@ -45,34 +99,66 @@ fn open_log(log_path: &String) -> File {
 }
 
 fn help(_: &mut Request) -> IronResult<Response> {
-    Ok(Response::with((status::Ok, "SOS JS error logger server.")))
+    let content_type = Header(ContentType(Mime(TopLevel::Text, SubLevel::Html, vec![])));
+    Ok(Response::with((status::Ok, HELP_MSG, content_type)))
 }
 
 fn log_data(req: &mut Request) -> IronResult<Response> {
+    let log_levels = &["debug", "info", "warning", "error"];
+    // This capacity is used to create HashMaps without the need to re-allocate.
+    let capacity = log_levels.iter().count();
+
+    // A HashMap containing Log_level -> bytes written for HTTP response.
+    let mut success = HashMap::with_capacity(capacity);
+    // A HashMap containing Log_level -> error reasons for HTTP response.
+    let mut errors = HashMap::with_capacity(capacity);
+
     let arc = req.get::<Read<Log>>().unwrap();
     let log_path = arc.as_ref();
 
     let log_file = open_log(log_path);
     let mut log_writer = BufWriter::new(&log_file);
 
-    let map = req.get_ref::<Params>().unwrap();
+    let params = req.get_ref::<Params>();
+    let params_map = match params {
+        Ok(params) => params,
+        Err(error) => return Ok(Response::with((status::BadRequest, error.description())))
+    };
 
-    // Try to find `error` key in the request data. If it is missing, we return 400: Bad request.
-    match map.find(&["error"]) {
-        Some(&Value::String(ref error)) => {
-            let log_line = format!("[{datetime}] {error}\n", datetime=Local::now().to_string(), error=error);
-            // Try to write into the LOG_FILE. When successful, return HTTP 200 Ok with the number
-            // of bytes writtern. Otherwise, we return HTTP 500 Internal Server Error with the
-            // reason.
-            match log_writer.write(&log_line.into_bytes()) {
-                Ok(bytes) => Ok(Response::with((status::Ok, format!("{}", bytes)))),
-                Err(reason) => {
-                    Ok(Response::with((status::InternalServerError, format!("{}", reason.description()))))
+    // Iterate over accepted log levels and log them.
+    for log_level in log_levels {
+        match params_map.get(*log_level) {
+            Some(&Value::String(ref value)) => {
+                let log_level = log_level.to_string();
+                let log_level_upper = log_level.to_uppercase();
+                let log_line = format!("[{datetime}][{level}] {record}\n", datetime=Local::now().to_string(), level=log_level_upper, record=value);
+                // Try to write into the LOG_FILE. When successful, return HTTP 200 Ok with the number
+                // of bytes writtern. Otherwise, we return HTTP 500 Internal Server Error with the
+                // reason.
+                match log_writer.write(&log_line.into_bytes()) {
+                    Ok(bytes) => {success.insert(log_level, format!("{}", bytes));},
+                    Err(reason) => {errors.insert(log_level, format!("{}", reason.description()));}
                 }
             }
-        },
-        _ => Ok(Response::with((status::BadRequest, "Missing 'error' in POST data."))),
+            _ => {}
+        }
     }
+
+    if success.is_empty() && errors.is_empty() {
+        return Ok(Response::with((status::BadRequest, "Missing one of ['debug', 'info', 'warning', 'error'] in POST data.")));
+    }
+
+    let response = JsonResponse {
+        success: success.to_json(),
+        errors: errors.to_json(),
+    };
+    let data: String = json::encode(&response).unwrap();
+    // If errors are not empty, we return different status code: 206 PartialContent
+    if !errors.is_empty() {
+        return Ok(Response::with((status::PartialContent, data)))
+    }
+    // Otherwise return 200 Ok.
+    Ok(Response::with((status::Ok, data)))
 }
 
 fn main() {
@@ -109,6 +195,7 @@ fn main() {
 
     let mut chain = Chain::new(router);
     chain.link(Read::<Log>::both(log_path.to_string()));
+    chain.link_after(ErrorRecover);
 
     println!("Listening on {}", address);
     Iron::new(chain).http(address).unwrap();
