@@ -44,18 +44,18 @@ The `api.log` file should contain:
 Best way is to install `rust` and compile the binary yourself. There are some pre-build binaries in the `Releases` section.
  
 ## Performance
-On my machine (Macbook Air) using `wrk`, about 7k requests/s with 1000 concurrent connections.
+On my machine (Macbook Air) using `wrk`, about 13k requests/s with 1000 concurrent connections.
 
     wrk -d60s -c1000 -t100 -s wrk-script.lua http://localhost:3000/log/
     Running 1m test @ http://localhost:3000/log/
       100 threads and 1000 connections
       Thread Stats   Avg      Stdev     Max   +/- Stdev
-        Latency     4.34ms    1.52ms  67.08ms   93.87%
-        Req/Sec   273.68    101.64   660.00     79.48%
-      428271 requests in 1.00m, 73.52MB read
-      Socket errors: connect 0, read 1702, write 0, timeout 0
-    Requests/sec:   7125.67
-    Transfer/sec:      1.22MB
+        Latency     2.36ms    1.14ms  87.90ms   95.13%
+        Req/Sec     3.38k     1.03k    5.64k    60.32%
+      807848 requests in 1.00m, 138.68MB read
+      Socket errors: connect 0, read 2433, write 0, timeout 0
+    Requests/sec:  13440.71
+    Transfer/sec:      2.31MB
     
 wrk-script.lua:
 
