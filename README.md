@@ -1,6 +1,5 @@
 # rust-http-logger
-[![Crates.io]
-(https://img.shields.io/crates/v/rust-http-logger.svg)](https://crates.io/crates/rust-http-logger)
+[![Crates.io](https://img.shields.io/crates/v/rust-http-logger.svg)](https://crates.io/crates/rust-http-logger)
 
 HTTP Server for logging from client JS to a server (into a file).
 
